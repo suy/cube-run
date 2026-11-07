@@ -12,6 +12,7 @@ import android.widget.LinearLayout
 import cube.run.GameActivity
 import cube.run.R
 import cube.run.core.Haptics
+import cube.run.core.RunBreakdown
 import cube.run.core.SoundFx
 import cube.run.core.Stage
 import cube.run.core.VoidBeats
@@ -57,6 +58,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
 
     // ---- in-run HUD
     private val scoreText = kit.stageText("0", 60f, stroke = 7f)
+    private val scoreMult = kit.iconPill(MultIcon(Theme.WHITE), "", Theme.WHITE, 15f, Theme.MULT).apply { visibility = GONE }
     private val haul = kit.iconPill(CoinIcon(), "0", Theme.INK, 18f, Theme.WHITE)
     private val boxes = kit.iconPill(BoxIcon(), "", Theme.INK, 18f, Theme.LAVENDER).apply { visibility = GONE }
     private val bubbles = kit.iconPill(BubbleIcon(), "", Theme.INK, 18f, Theme.lighten(Theme.CYAN, 0.55f)).apply { visibility = GONE }
@@ -79,6 +81,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
             addView(haul)
             addView(boxes, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(8f) })
             addView(bubbles, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(8f) })
+            addView(scoreMult, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(8f) })
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = -dp(4f) })
     }
 
@@ -658,10 +661,15 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     private var scoreBoost = false
     private var scoreTint: android.animation.ValueAnimator? = null
 
-    /** While rows score double the score glows 2× pink, with a pop as it switches on. */
-    fun setScoreBoost(on: Boolean) {
-        if (on == scoreBoost) return
+    /** While rows score N× the score glows pink and an ×N badge pops in beside the counters. */
+    fun setScoreBoost(factor: Int) {
+        val label = kit.labelOf(scoreMult)
+        val on = factor > 1
+        if (on == scoreBoost && label.text.toString() == "×$factor") return
         scoreBoost = on
+        label.text = "×$factor"
+        scoreMult.visibility = if (on) VISIBLE else GONE
+        if (on) Anim.popIn(scoreMult, 0, 0.4f, 240)
         scoreTint?.cancel()
         scoreTint = android.animation.ValueAnimator.ofArgb(scoreText.currentTextColor, if (on) Theme.MULT else Theme.WHITE).apply {
             duration = 220
@@ -671,7 +679,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         if (on) Anim.pulse(scoreText, 1.3f, 240)
     }
 
-    private fun resetScoreBoost() { scoreTint?.cancel(); scoreTint = null; scoreBoost = false; scoreText.setTextColor(Theme.WHITE) }
+    private fun resetScoreBoost() { scoreTint?.cancel(); scoreTint = null; scoreBoost = false; scoreText.setTextColor(Theme.WHITE); scoreMult.visibility = GONE }
 
     /** The boost window opened or closed (GL → UI); [taps] used so far. */
     fun setBoost(open: Boolean, taps: Int, max: Int) {
@@ -822,7 +830,8 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         setBubbleCooldown(0); setBubbles(Progress.bubbles)
     }
 
-    fun showRunOver(score: Int, best: Int, isNewBest: Boolean, coins: Int, boxes: Int, shards: IntArray = IntArray(3)) {
+    fun showRunOver(score: Int, best: Int, isNewBest: Boolean, coins: Int, boxes: Int, shards: IntArray = IntArray(3),
+        breakdown: RunBreakdown = RunBreakdown()) {
         clearHardwareFocus()
         achievementToast.setRunActive(false)
         jackpotCounter.reset()
@@ -836,6 +845,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         setBoost(false, 0, 5)
         val flow = RunOverFlow(activity, kit, score, best, isNewBest, coins, boxes, world, bonusVisited,
             shards = shards,
+            breakdown = breakdown,
             onRestart = { relaunch(autoStart = true) },
             onMenu = { relaunch(autoStart = false) },
         )

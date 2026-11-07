@@ -201,6 +201,9 @@
     <string name="text_seconds">%1$s s</string>
     <string name="text_new_cosmetic">NEU: %1$s!</string>
     <string name="text_shards_collected">%1$d %2$s gesammelt</string>
+    <string name="text_boost_pill">×%1$d Reihen +%2$d</string>
+    <string name="text_near_miss_pill">Knapp vorbei +%1$d</string>
+    <string name="text_coin_bonus_pill">%1$s +%2$s</string>
     <string name="text_unlock_shards">%1$s freischalten: %2$d %3$s</string>
     <string name="text_shard_progress">%1$s: %2$d von %3$d %4$s</string>
     <string name="text_toggle_on">%1$s an</string>

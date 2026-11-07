@@ -49,6 +49,12 @@ class GameHostSession(
     private var runAlive = 0
     private var bonusMask = 0
     private var shardMask = 0
+    private var boostRows = 0
+    private var boostPoints = 0
+    private var nearMissPoints = 0
+    private var skinCoinBonus = 0.0
+    private var bubbleCoinBonus = 0.0
+    private var worldCoinBonus = 0.0
     private var lastDistance = 0
     private var observedDistance = 0
     private var lastSwipeFrom = -1
@@ -77,7 +83,7 @@ class GameHostSession(
         for (i in 0..2) shardsV.set(i, 0)
         runHasStarted = false; centerLaneObserved = false; stayedCentered = true; stayedCoinless = true
         missedBoxes = 0; noPowerup = true; runBoxesCollected = 0; runGroundPounds = 0; bonusMask = 0; shardMask = 0
-        runSmashed = 0; runBoosts = 0; runAlive = 0
+        runSmashed = 0; runBoosts = 0; runAlive = 0; resetBreakdown()
         lastDistance = 0; observedDistance = 0; lastSwipeFrom = -1; lastSwipeTo = -1
         lastSwipeAt = 0L; reversals = 0
         Progress.clearRunCoins()
@@ -105,7 +111,7 @@ class GameHostSession(
         stayedCentered = true
         stayedCoinless = true
         missedBoxes = 0
-        noPowerup = true; runBoxesCollected = 0; runGroundPounds = 0; bonusMask = 0; shardMask = 0; runSmashed = 0; runAlive = 0
+        noPowerup = true; runBoxesCollected = 0; runGroundPounds = 0; bonusMask = 0; shardMask = 0; runSmashed = 0; runAlive = 0; resetBreakdown()
         lastDistance = 0; observedDistance = 0; lastSwipeFrom = -1; lastSwipeTo = -1; reversals = 0
         runSkin = Progress.skin
         silentAtStart = runSkin == 0 && !Settings.soundEnabled && !Settings.hapticsEnabled
@@ -219,7 +225,32 @@ class GameHostSession(
     }
 
     override fun setBubbleCooldown(seconds: Int) { ui { it.setBubbleCooldown(seconds) } }
-    override fun setScoreBoost(on: Boolean) { ui { it.setScoreBoost(on) } }
+    override fun setScoreBoost(factor: Int) { ui { it.setScoreBoost(factor) } }
+
+    @Synchronized override fun boostedRowScored(bonus: Int) {
+        if (runHasStarted && !over.get()) { boostRows++; boostPoints += bonus }
+    }
+
+    @Synchronized override fun nearMissScored(points: Int) {
+        if (runHasStarted && !over.get()) nearMissPoints += points
+    }
+
+    @Synchronized override fun coinBonus(source: Int, amount: Double) {
+        if (!runHasStarted || over.get()) return
+        when (source) {
+            0 -> skinCoinBonus += amount
+            1 -> bubbleCoinBonus += amount
+            2 -> worldCoinBonus += amount
+        }
+    }
+
+    @Synchronized private fun resetBreakdown() {
+        boostRows = 0; boostPoints = 0; nearMissPoints = 0
+        skinCoinBonus = 0.0; bubbleCoinBonus = 0.0; worldCoinBonus = 0.0
+    }
+
+    @Synchronized private fun runBreakdown(skinId: Int) =
+        RunBreakdown(boostRows, boostPoints, nearMissPoints, skinCoinBonus, bubbleCoinBonus, worldCoinBonus, skinId)
 
     override fun setBoxes(v: Int) {
         if (over.get()) return
@@ -283,7 +314,8 @@ class GameHostSession(
             SoundFx.play("fail")
             Haptics.fail()
         }
-        ui { it.showRunOver(finalScore, prevBest, isNew, runCoins, boxes, runShards) }
+        ui { it.showRunOver(finalScore, prevBest, isNew, runCoins, boxes, runShards,
+            if (zen) RunBreakdown(skinId = runSkin) else runBreakdown(runSkin)) }
     }
 
     private fun saturatedAdd(a: Int, b: Int) = (a.toLong() + b).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()

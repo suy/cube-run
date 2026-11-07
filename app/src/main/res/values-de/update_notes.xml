@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string-array name="update_notes" />
+    <string-array name="update_notes">
+        <item>news|Boosts auf der Wertung|Die Ergebnisliste zeigt jetzt, was deine Boosts wirklich gebracht haben: gestapelte ×2-Reihen, Knapp-vorbei-Boni und jede Münze extra aus Würfel, Bubble oder Bonuswelt.</item>
+    </string-array>
 </resources>

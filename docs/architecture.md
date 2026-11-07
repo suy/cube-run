@@ -140,7 +140,9 @@ Obstacles and decorations keep their rigid shapes through `worldBox`.
 
 ## The run-over flow
 
-Results (the cube in front of a sunburst, the score, the stars and coins)
+Results (the cube in front of a sunburst, the score, the stars and coins,
+plus pills for what the boosts added: stacked ×2 rows, near misses and every
+extra coin from the cube, the bubble or a bonus world)
 → the mystery boxes, if any (each shatters into shards
 and its prize hangs where it was) → straight back to the main menu. There
 is no "go again" page: restart and everything else live on the menu.

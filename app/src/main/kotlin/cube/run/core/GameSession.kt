@@ -60,8 +60,21 @@ interface GameSession {
     /** Bubble shields left in stock (shown as a HUD hint). */
     fun setBubbles(v: Int) {}
     fun setBubbleCooldown(seconds: Int) {}
-    /** Rows score double right now (the 2× pickup or a Double Score bubble): the HUD score turns pink. */
-    fun setScoreBoost(on: Boolean) {}
+    /** Rows score double right now (the 2× pickup or a Double Score bubble): the HUD score turns pink
+     *  and shows an ×N badge. 1 (or less) means no boost. */
+    fun setScoreBoost(factor: Int) {}
+
+    /** A row scored under a stacked score multiplier: [bonus] points beyond the base one. */
+    fun boostedRowScored(bonus: Int) {}
+
+    /** Near-miss bonus points, Close Shave's triple included. */
+    fun nearMissScored(points: Int) {}
+
+    /**
+     * Extra coins beyond the base coin value, attributed to their boost:
+     * 0 = the cube's coin multiplier, 1 = the Golden Bubble, 2 = a coin-doubling bonus world.
+     */
+    fun coinBonus(source: Int, amount: Double) {}
 
     /** Mystery boxes collected so far this run (opened on the run-over screens). */
     fun setBoxes(v: Int) {}
@@ -92,3 +105,21 @@ interface GameSession {
      */
     fun gameOver()
 }
+
+/** What the boosts added to a run, shown as pills on the results card. */
+data class RunBreakdown(
+    /** Rows that scored under a 2× / Double Score multiplier. */
+    val boostedRows: Int = 0,
+    /** Extra points those rows scored beyond the base one per row. */
+    val boostPoints: Int = 0,
+    /** Near-miss bonus points, Close Shave's triple included. */
+    val nearMissPoints: Int = 0,
+    /** Extra coins from the cube's coin multiplier. */
+    val skinCoins: Double = 0.0,
+    /** Extra coins from the Golden Bubble. */
+    val bubbleCoins: Double = 0.0,
+    /** Extra coins inside a coin-doubling bonus world. */
+    val worldCoins: Double = 0.0,
+    /** The cube worn this run, to name the coin multiplier pill. */
+    val skinId: Int = 0,
+)

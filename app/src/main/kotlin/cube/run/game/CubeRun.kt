@@ -173,7 +173,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     private var sweepFlight = 0      // the flight being judged (Track.flight), 0 = none
     private var sweepClean = false   // no coin of its line has slipped past yet
     private var sweepTaken = 0
-    private var scoreBoostShown = false
+    private var scoreBoostShown = 1
 
     // smooth-control gesture state (positional steering within one continuous touch)
     private var smoothAnchorX = 0f
@@ -328,7 +328,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             track.portalPool = emptyList()
             powerUps.magnet.start(3600f)
         }
-        bubble.reset(); shownBubbleCooldown = 0; session.setBubbleCooldown(0); bubbleSlow = 0f; sweepFlight = 0; showScoreBoost(false)
+        bubble.reset(); shownBubbleCooldown = 0; session.setBubbleCooldown(0); bubbleSlow = 0f; sweepFlight = 0; showScoreBoost(1)
         bubble.cooldownDuration = Progress.bubbleCooldownSeconds * runSkin.bubbleCooldownMultiplier
         bubble.duration = bubbleDuration()
         difficulty.ceiling = if (zen) zenCeiling else 1f
@@ -574,11 +574,15 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         return solids
     }
 
-    /** Rows score double: the 2× pickup or a Double Score bubble. */
-    private fun scoreBoosted() = powerUps.mult.active || (bubble.active && Skins.Ability.BUBBLE_SCORE in runBubble.abilities)
+    /** Rows score double (or ×4 stacked): the 2× pickup and a Double Score bubble. */
+    private fun scoreBoosted(): Int {
+        // The 2× pickup and a Double Score bubble stack.
+        return (if (powerUps.mult.active) 2 else 1) *
+            (if (bubble.active && Skins.Ability.BUBBLE_SCORE in runBubble.abilities) 2 else 1)
+    }
 
-    private fun showScoreBoost(on: Boolean) {
-        if (on != scoreBoostShown) { scoreBoostShown = on; session.setScoreBoost(on) }
+    private fun showScoreBoost(factor: Int) {
+        if (factor != scoreBoostShown) { scoreBoostShown = factor; session.setScoreBoost(factor) }
     }
 
     private fun scoreRow(row: Row) {
@@ -586,14 +590,15 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         if (zen && row.obs.any { it.type == ObType.SOLID }) zenStreak = 0
         rowsPassed++
         // The 2× pickup and a Double Score bubble stack.
-        val factor = (if (powerUps.mult.active) 2 else 1) *
-            (if (bubble.active && Skins.Ability.BUBBLE_SCORE in runBubble.abilities) 2 else 1)
+        val factor = scoreBoosted()
         session.addScore(factor)
+        if (factor > 1) session.boostedRowScored(factor - 1)
         fx.rowPassed()
         if (row.minClear < 0.34f) { // shaved it — reward a close dodge with an air-rush
             session.nearMiss()
             val bonus = nearMissBonus * (if (Skins.Ability.CLOSE_SHAVE in runSkin.abilities) 3 else 1)
             session.addScore(bonus * factor)
+            session.nearMissScored(bonus * factor)
             fx.nearMiss(player.px, player.py)
         }
         if (!track.isPillTest) worlds.onRow(rowsPassed)
@@ -639,8 +644,9 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             die()
             return
         }
-        val value = Progress.coinValue * (if (bonus == Bonus.KALEIDO) 2f else 1f) *
-            (if (bubble.active && Skins.Ability.GOLD_BUBBLE in runBubble.abilities) 1.6f else 1f)
+        val worldMult = if (bonus == Bonus.KALEIDO) 2f else 1f
+        val bubbleMult = if (bubble.active && Skins.Ability.GOLD_BUBBLE in runBubble.abilities) 1.6f else 1f
+        val value = Progress.coinValue * worldMult * bubbleMult
         if (Skins.Ability.COAL in runSkin.abilities && !coin.gem) {
             session.coalCollected()
             if (Settings.roadCoins) SoundFx.play("tap", rate = .75f, vol = .35f)
@@ -654,6 +660,12 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             return
         }
         val preciseValue = if (coin.gem && Skins.Ability.COAL in runSkin.abilities) 3.0 else kotlin.math.round(value.toDouble() * runSkin.coinMultiplier * 1_000_000.0) / 1_000_000.0
+        if (!coin.gem || Skins.Ability.COAL !in runSkin.abilities) {
+            // Attribute the coin's boost shares for the run-over breakdown (skin multiplier applied last).
+            if (runSkin.coinMultiplier > 1f) session.coinBonus(0, preciseValue - value)
+            if (bubbleMult > 1f) session.coinBonus(1, ((value - Progress.coinValue) * runSkin.coinMultiplier).toDouble())
+            if (worldMult > 1f) session.coinBonus(2, (Progress.coinValue * (worldMult - 1) * bubbleMult * runSkin.coinMultiplier).toDouble())
+        }
         val before = coinsRun
         coinsRunF = (coinsRunF + preciseValue).coerceAtMost(Int.MAX_VALUE.toDouble())
         coinsRun = (coinsRunF + .0000001).toInt()
@@ -1073,7 +1085,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         } else if (player.falling) fallStep(dt, mv)
         bubble.update(dt, time, player.px + player.nudge, player.py + Terrain.y(0f))
         refreshJumpAbility()
-        showScoreBoost(live() && scoreBoosted())
+        showScoreBoost(if (live()) scoreBoosted() else 1)
         val cooldown = kotlin.math.ceil(bubble.cooldownLeft).toInt()
         if (cooldown != shownBubbleCooldown) { shownBubbleCooldown = cooldown; session.setBubbleCooldown(cooldown) }
 

@@ -19,9 +19,11 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.ScrollView
 import cube.run.core.Haptics
+import cube.run.core.RunBreakdown
 import cube.run.core.SoundFx
 import cube.run.core.Stage
 import cube.run.data.Progress
+import cube.run.data.Skins
 import cube.run.data.Wardrobe
 import cube.run.ui.Anim.move
 
@@ -52,6 +54,7 @@ class RunOverFlow(
     private val onRestart: () -> Unit,
     private val onMenu: () -> Unit,
     private val shards: IntArray = IntArray(3),
+    private val breakdown: RunBreakdown = RunBreakdown(),
 ) : FrameLayout(activity) {
 
     private fun dp(v: Float) = kit.dp(v)
@@ -128,6 +131,39 @@ class RunOverFlow(
         if (icon != null) addView(ImageView(activity).apply { setImageDrawable(icon) }, LinearLayout.LayoutParams(dp(26f), dp(26f)).apply { bottomMargin = dp(4f) })
         addView(kit.stageText(value, 22f, color, stroke = 2.5f).apply { maxLines = 1 })
         addView(kit.text(label.uppercase(kit.ctx.resources.configuration.locales[0]), 10f, Theme.alpha(Theme.WHITE, 200), 700).apply { letterSpacing = kit.tracking(0.1f); maxLines = 1 })
+    }
+
+    /** Boost pills under the stats: what the multipliers actually added this run. */
+    private fun breakdownPills(card: LinearLayout) {
+        fun pill(icon: Drawable, text: String, fill: Int = Theme.alpha(Theme.WHITE, 25)): LinearLayout =
+            kit.iconPill(icon, text, Theme.WHITE, 15f, fill)
+        fun row(): LinearLayout = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
+            clipChildren = false; clipToPadding = false
+        }
+        val scoreRow = row()
+        if (breakdown.boostPoints > 0) {
+            val factor = 1 + breakdown.boostPoints / breakdown.boostedRows.coerceAtLeast(1)
+            scoreRow.addView(pill(MultIcon(Theme.WHITE), kit.ctx.getString(R.string.text_boost_pill, factor, breakdown.boostPoints)),
+                LinearLayout.LayoutParams(-2, -2))
+        }
+        if (breakdown.nearMissPoints > 0) {
+            scoreRow.addView(pill(StarIcon(Theme.YELLOW, true), kit.ctx.getString(R.string.text_near_miss_pill, breakdown.nearMissPoints)),
+                LinearLayout.LayoutParams(-2, -2))
+        }
+        if (scoreRow.childCount > 0) card.addView(scoreRow, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8f) })
+
+        val coinRow = row()
+        fun coinPill(amount: Double, name: String) {
+            if (amount < 0.5) return
+            val text = java.lang.String.format(kit.ctx.resources.configuration.locales[0], "%,d", kotlin.math.round(amount).toLong())
+            coinRow.addView(pill(CoinIcon(), kit.ctx.getString(R.string.text_coin_bonus_pill, name, text)),
+                LinearLayout.LayoutParams(-2, -2))
+        }
+        coinPill(breakdown.skinCoins, kit.ctx.gameText(Skins.get(breakdown.skinId).name))
+        coinPill(breakdown.bubbleCoins, kit.ctx.getString(R.string.ability_gold_bubble))
+        coinPill(breakdown.worldCoins, kit.ctx.gameText("Kaleidoscope"))
+        if (coinRow.childCount > 0) card.addView(coinRow, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6f) })
     }
 
     /** The glass the results sit on. */
@@ -222,6 +258,7 @@ class RunOverFlow(
             addView(coinCell, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         }
         card.addView(stats, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4f) })
+        breakdownPills(card)
         if (shards.any { it > 0 }) {
             val collected = LinearLayout(activity).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER

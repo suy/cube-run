@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string-array name="update_notes" />
+    <string-array name="update_notes">
+        <item>news|בוסטים בלוח התוצאות|מסך הסיום מציג עכשיו מה הבוסטים באמת הוסיפו: שורות ×2 מוקפות, בונוסי כמעט-פגיעה, וכל מטבע נוסף מהקוביה, הבועה או העולם הבונוס.</item>
+    </string-array>
 </resources>
